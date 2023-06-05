@@ -1,0 +1,19 @@
+Odysseas:
+    Band energy ratio: 
+        Comparison of energy in the lower/higher frequency bands
+        Measurment of how dominanant low frequencies are
+        We define a split frequencies. It is completely arbitrary (reasonable value 2000Hz)
+        Specifically used to descriminate music from speach, define music genre
+        It is calculated as the squared sum of the aplitudes for each low and high frequencys and taking the ratio
+    Spectral Centroid:
+        Center of gravityof the magnitude spectrum. Frequency band in which we have most of the energy concentrated
+        Measure of brightness
+        Used for Audio/Sound Classification
+    Bandwidth:
+        Derived from spectral centroid
+        Spectral range around the centroid
+        Variance from the spectral centroid
+        It is the weighted mean of the distances of frequency bands from SC
+        Used for music genre classification
+
+        
