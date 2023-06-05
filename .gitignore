@@ -163,3 +163,5 @@ cython_debug/
 
 # Remove data
 data/
+#remove model
+model*
