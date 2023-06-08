@@ -51,7 +51,7 @@ xp = dnn.layer1(input)
 sp_mean = sp.mean(0)
 
 #Initializes each layers weights and optimizes them
-for j, layer in enumerate([dnn.layer2, dnn.layer3, dnn.layer4, dnn.layer5]):
+for layer in [dnn.layer2, dnn.layer3, dnn.layer4, dnn.layer5]:
     xp_mean = xp.mean(0)
     Csx = torch.zeros((L,L))
     Cxx = torch.zeros((L,L))
