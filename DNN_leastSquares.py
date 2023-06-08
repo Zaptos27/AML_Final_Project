@@ -79,6 +79,6 @@ def closure():
     final_opt.zero_grad()
     output = dnn(input)
     loss = criterion(output, target)
-    loss.backward(retain_graph=True)
+    loss.backward()
     return loss
 final_opt.step(closure)
