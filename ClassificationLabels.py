@@ -11,7 +11,8 @@ import glob
 import time
 
 start_time = time.time()
-directory = "/Users/odysseaslazaridis/Documents/GroupProject/new_babyslack"
+#directory = "/Users/odysseaslazaridis/Documents/GroupProject/new_babyslack"
+directory = "new_babyslack"
 # Size of the Fast Fourier Transform (FFT), which will also be used as the window length
 n_fft=1024 #number is from  mdpi paper
 
@@ -44,37 +45,29 @@ for tr in os.listdir(directory):
     if tr!=".DS_Store":
         
         iters = get_iterations(track_path)
-        
-        for i in range(iters):
-            snipet_labels_dict ={}
-            start_index = i
-            end_index = i + 64000
-            dif = end_index - start_index
 
-            inst = "Guitar.wav"
-            inst_list =["Guitar.wav","Piano.wav","Bass.wav","Drums.wav"]
-            for inst in inst_list:
-
-                if os.path.exists(os.path.join(track_path, inst)):
-                    instr_path = os.path.join(track_path, inst)
-                    y, sr = sf.read(instr_path)
-                    y_ = y[start_index:end_index]
-                    Mel_spectrogram = librosa.feature.melspectrogram(y=y_, sr=sr, n_fft=n_fft, hop_length=hop_length, win_length=n_fft, window=window_type, n_mels = mel_bins, power=2.0)
-                    mel_spectrogram_db = librosa.power_to_db(Mel_spectrogram, ref=np.max)
-                    if np.amax(mel_spectrogram_db) < -60:
-                        snipet_labels_dict[inst]=0
+        inst_list = ["Guitar.wav","Piano.wav","Bass.wav","Drums.wav"]
+        for inst in inst_list:
+            if os.path.exists(os.path.join(track_path, inst)):
+                labels = []
+                instr_path = os.path.join(track_path, inst)
+                y, sr = sf.read(instr_path)
+                Mel_spectrogram = librosa.feature.melspectrogram(y=y, sr=sr, n_fft=n_fft, hop_length=hop_length, win_length=n_fft, window=window_type, n_mels = mel_bins, power=2.0)
+                mel_spectrogram_db = librosa.power_to_db(Mel_spectrogram, ref=np.max)
+                for i in range(iters):
+                    start_index = i*int(2*64000/n_fft)
+                    end_index = (i+1)*int(2*64000/n_fft)
+                    if np.amax(mel_spectrogram_db[:,start_index:end_index]) < -60:
+                        labels.append(0)
                     else:
-                        snipet_labels_dict[inst]=1
-                else:   
-                    print("this insttrument ("+inst+") doesn't exist")                     
-                    snipet_labels_dict[inst]=0
+                        labels.append(1)
+            else:
+                print("this insttrument ("+inst+") doesn't exist")                     
+                labels = [0 for i in range(iters)]
+            track_lables_dict[inst]=labels
 
-            
-            track_lables_dict[i]=snipet_labels_dict
     torch.save(track_lables_dict, os.path.join(track_path, tr + '.pt'))
 
 end_time = time.time()
 
 print("the code run in "+str(end_time-start_time))
-
-                
