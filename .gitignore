@@ -167,3 +167,9 @@ data/
 model*
 #Remove torch data files
 *.pt
+
+# Remove audio
+*.wav
+*.mp3
+*.ogg
+*.flac
