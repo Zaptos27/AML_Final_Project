@@ -106,7 +106,7 @@ def data_dicts_all(directory=directory, listdir=listdir, format=format, sample_f
 def data_frame(NUMBER_OF_ITERATIONS,amount, C = C, L = L):
     for data in data_dicts(NUMBER_OF_ITERATIONS, freq_amount=L):
         dat = {}
-        lenght = data['mix'].shape[2]
+        lenght = data['mix'].shape[1]
         for inst in data.keys():
             dat[inst] = torch.zeros(amount,L,2*C+1,2, dtype=torch.float64)
             for j, rand in enumerate(torch.randint(0, lenght, (amount,))):
@@ -133,7 +133,7 @@ def data_frame(NUMBER_OF_ITERATIONS,amount, C = C, L = L):
 def data_frame_all(NUMBER_OF_ITERATIONS,amount, C = C, L = L):
     for data in data_dicts_all(NUMBER_OF_ITERATIONS, freq_amount=L):
         dat = {}
-        lenght = data['mix'].shape[2]
+        lenght = data['mix'].shape[1]
         for inst in data.keys():
             dat[inst] = torch.zeros(amount,L,2*C+1,2, dtype=torch.float64)
             for j, rand in enumerate(torch.randint(0, lenght, (amount,))):
