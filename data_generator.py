@@ -23,7 +23,7 @@ C = 2
 NUMBER_OF_ITERATIONS = 2
 
 
-def data_dicts(N, directory=directory, listdir=listdir, format=format, sample_freq=sample_freq, freq_amount=freq_amount, mixing=mixing, mix_amount=mix_amount):
+def data_dicts(N, directory=directory, listdir=listdir, format=format, sample_freq=sample_freq, freq_amount=freq_amount, mixing=mixing, mix_amount=mix_amount, device=device, dict1=False):
     for _ in range(N):
         tr = np.random.choice(listdir)
         tr_dict = {}
@@ -58,13 +58,15 @@ def data_dicts(N, directory=directory, listdir=listdir, format=format, sample_fr
         inst_data = sf.read(os.path.join(tr_path, 'mix' + format))[0]
         tr_dict.update({'mix': inst_data})
 
+        if dict1:
+            yield tr_dict
         
         tr_dicts_2 = {inst: torch.view_as_real_copy(torch.from_numpy(stft(tr_dict[inst], fs=sample_freq, nperseg=freq_amount*2-2)[2]).to(device)) for inst in tr_dict.keys()}
         yield tr_dicts_2
         
         
         
-def data_dicts_all(directory=directory, listdir=listdir, format=format, sample_freq=sample_freq, freq_amount=freq_amount, mixing=mixing, mix_amount=mix_amount):
+def data_dicts_all(directory=directory, listdir=listdir, format=format, sample_freq=sample_freq, freq_amount=freq_amount, mixing=mixing, mix_amount=mix_amount, device=device, dict1=False):
     for tr in np.random.shuffle(listdir):
         tr_dict = {}
         tr_path = os.path.join(directory, tr)
@@ -98,7 +100,8 @@ def data_dicts_all(directory=directory, listdir=listdir, format=format, sample_f
         inst_data = sf.read(os.path.join(tr_path, 'mix' + format))[0]
         tr_dict.update({'mix': inst_data})
 
-        
+        if dict1:
+            yield tr_dict
         tr_dicts_2 = {inst: torch.view_as_real_copy(torch.from_numpy(stft(tr_dict[inst], fs=sample_freq, nperseg=freq_amount*2-2)[2]).to(device)) for inst in tr_dict.keys()}
         yield tr_dicts_2
         
