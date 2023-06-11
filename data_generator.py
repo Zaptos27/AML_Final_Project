@@ -7,7 +7,7 @@ import torch
 # If you have a GPU, put the data on the GPU
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-directory = "../Data/slakh2100_flac_redux/train"
+directory = "Data/slakh2100_flac_redux/train"
 listdir = os.listdir(directory)
 listdir.sort()
 format = '.flac'
@@ -23,9 +23,9 @@ C = 2
 NUMBER_OF_ITERATIONS = 2
 
 
-def data_dicts(N, directory=directory, listdir=listdir, format=format, sample_freq=sample_freq, freq_amount=freq_amount, mixing=mixing, mix_amount=mix_amount, device=device, dict1=False):
+def data_dicts(N, directory=directory, format=format, sample_freq=sample_freq, freq_amount=freq_amount, mixing=mixing, mix_amount=mix_amount, device=device, dict1=False):
     for _ in range(N):
-        tr = np.random.choice(listdir)
+        tr = np.random.choice(os.listdir(directory))
         tr_dict = {}
         tr_path = os.path.join(directory, tr)
         with open(os.path.join(tr_path, "metadata.yaml")) as meta:
@@ -66,8 +66,8 @@ def data_dicts(N, directory=directory, listdir=listdir, format=format, sample_fr
         
         
         
-def data_dicts_all(directory=directory, listdir=listdir, format=format, sample_freq=sample_freq, freq_amount=freq_amount, mixing=mixing, mix_amount=mix_amount, device=device, dict1=False):
-    for tr in np.random.shuffle(listdir):
+def data_dicts_all(directory=directory, format=format, sample_freq=sample_freq, freq_amount=freq_amount, mixing=mixing, mix_amount=mix_amount, device=device, dict1=False):
+    for tr in np.random.shuffle(os.listdir(directory)):
         tr_dict = {}
         tr_path = os.path.join(directory, tr)
         with open(os.path.join(tr_path, "metadata.yaml")) as meta:
@@ -106,8 +106,8 @@ def data_dicts_all(directory=directory, listdir=listdir, format=format, sample_f
         yield tr_dicts_2
         
         
-def data_frame(NUMBER_OF_ITERATIONS,amount, C = C, L = L):
-    for data in data_dicts(NUMBER_OF_ITERATIONS, freq_amount=L):
+def data_frame(NUMBER_OF_ITERATIONS,amount, C = C, L = L, **kwargs):
+    for data in data_dicts(NUMBER_OF_ITERATIONS, freq_amount=L, **kwargs):
         dat = {}
         lenght = data['mix'].shape[1]
         for inst in data.keys():
