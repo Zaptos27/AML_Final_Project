@@ -7,6 +7,7 @@ import os
 import numpy as np
 import data_generator as dg
 
+dropout = False
 C = 3
 L = 129
 N = 1000
@@ -21,22 +22,26 @@ class DNN(nn.Module):
     def __init__(self, C, L):
         super(DNN, self).__init__()
 
-        self.layer1 = nn.Linear((2*C+1)*L, 2*L, dtype=torch.complex128)
-        self.layer2 = nn.Linear(2*L, L, dtype=torch.complex128)
+        self.layer1 = nn.Linear((2*C+1)*L, L, dtype=torch.complex128)
+        self.layer2 = nn.Linear(L, L, dtype=torch.complex128)
         self.layer3 = nn.Linear(L, L, dtype=torch.complex128)
         self.layer4 = nn.Linear(L, L, dtype=torch.complex128)
         self.layer5 = nn.Linear(L, L, dtype=torch.complex128)
 
     def forward(self, x):
         x = complex_relu(self.layer1(x))
+        if dropout:
+            x = F.dropout(x, p=0.2)
         x = complex_relu(self.layer2(x))
         x = complex_relu(self.layer3(x))
+        if dropout:
+            x = F.dropout(x, p=0.2)
         x = complex_relu(self.layer4(x))
         x = self.layer5(x)
         return x
 
 dnn = DNN(C, L)
-criterion = nn.MSELoss()
+criterion = nn.MSELoss(reduction='sum')
 
 optimizer = optim.Adam(dnn.parameters(), lr=0.001)
 
@@ -108,7 +113,7 @@ class torchAgent:
         else:
             path = self.data_path
         inst = 'Piano'
-        for f in dg.data_frame(50, self.N, C = self.C, L = self.L):
+        for f in dg.data_frame(50, self.N, C = self.C, L = self.L, mix_amount = 4):
             positive, negative = dg.search_dicts(f, inst)
             if inst in positive:
                 # Yield positive with inst as label and negative with a zero_like as label
@@ -181,18 +186,18 @@ class torchAgent:
         for epoch in range(self.epoch):
             print(f'Epoch: [{epoch+1}/{self.epoch}]')
             epoch_loss = self.train_one_epoch(**kwargs)
-            print(f'Epoch: [{epoch+1}/{self.epoch}] loss: {epoch_loss:.10f}')
+            print(f'Epoch: [{epoch+1}/{self.epoch}] loss: {epoch_loss:.5f}')
             valid_loss = self.validate(**kwargs)
             if best_loss > valid_loss:
                 print('Saving model...')
-                self.save_model()
+                self.save_model(epoch=str(epoch+1))
                 best_loss = valid_loss
             if self.scheduler is not None:
                 self.scheduler.step()
         print('Finished Training')
 
-    def save_model(self):
-        torch.save(self.model.state_dict(), self.model_path)
+    def save_model(self, epoch: str = 'final'):
+        torch.save(self.model.state_dict(), self.model_path+'_EPOCH_'+epoch)
         print(f'Model saved at {self.model_path}')
 
     def load_model(self, model_path: str):
@@ -201,4 +206,5 @@ class torchAgent:
         
         
 agent = torchAgent(dnn, criterion, optimizer=optim.Adam, epoch=epochs)
+agent.add_scheduler(optim.lr_scheduler.StepLR, step_size=3, gamma=0.5)
 agent.train()
