@@ -199,7 +199,38 @@ class torchAgent:
 
     def load_model(self, model_path: str):
         self.model.load_state_dict(torch.load(model_path))
-        print(f'Model loaded from {model_path}')        
+        print(f'Model loaded from {model_path}')     
+
+    def test(self, **kwargs): #Loss function for test?
+        self.model.train(False)
+        running_loss = 0.
+
+        for i, (data, labels) in enumerate(self.tracks(test=True)):
+            # calculate loss
+            loss = self.loss_fn(torch.view_as_real(self.model(data)), torch.view_as_real(labels))
+
+            # print statistics
+            running_loss += loss.item()
+            print(f'Batch: [{i+1}] loss: {loss.item():.5f}, loss: {running_loss:.5f}',end='\r')
+
+            # free memory
+            del data, labels, loss
+            torch.cuda.empty_cache()
+
+        return running_loss/(i+1)   
+    
+    #Predict from the test set
+    def predict(self, **kwargs):
+        self.model.train(False)
+        
+        for i, (data, labels) in enumerate(self.tracks(test=True)):
+            self.model(data)
+            
+            yield data, labels
+
+            # free memory
+            del data, labels
+            torch.cuda.empty_cache()
         
         
 agent = torchAgent(dnn, criterion, optimizer=optim.Adam, epoch=epochs)
