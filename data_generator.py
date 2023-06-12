@@ -22,12 +22,14 @@ C = 2
 NUMBER_OF_ITERATIONS = 2
 
 
-def data_dicts(N: int = 10, directory=directory, format=format, sample_freq=sample_freq, freq_amount=freq_amount, mixing=mixing, mix_amount=mix_amount, device=device, dict1=False, all: bool = False):
+def data_dicts(N: int = 10, directory=directory, format=format, sample_freq=sample_freq, freq_amount=freq_amount, mixing=mixing, mix_amount=mix_amount, device=device, dict1=False, all: bool = False, print_dict: bool = False):
     if all:
         iterator = np.random.shuffle(os.listdir(directory))
     else:
         iterator = np.random.choice(os.listdir(directory), N)
     for tr in iterator:
+        if print_dict:
+            print(tr)
         tr_dict = {}
         tr_path = os.path.join(directory, tr)
         with open(os.path.join(tr_path, "metadata.yaml")) as meta:
@@ -49,7 +51,7 @@ def data_dicts(N: int = 10, directory=directory, format=format, sample_freq=samp
         if mixing:
             # Find all instruments that are in the dictionary
             inst_in_dict = list(tr_dict.keys())
-            inst_amount = np.random.randint(2, len(inst_in_dict), size=mix_amount)
+            inst_amount = np.random.randint(2, len(inst_in_dict)-1, size=mix_amount)
             for i in range(mix_amount):
                 # Choose the instruments to combine
                 inst_to_mix = np.random.choice(inst_in_dict, inst_amount[i], replace=False)
