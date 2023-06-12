@@ -130,8 +130,8 @@ class torchAgent:
                         break
                 data = torch.stack(data).to(self.device)
                 label = torch.stack(label).to(self.device)
-                data = data.reshape(-1, L*(2*C+1))
-                label = label.reshape(-1, L)
+                data = data.reshape(-1, L*(2*C+1)).to(self.device)
+                label = label.reshape(-1, L).to(self.device)
                 yield data, label
                 del data, label
 
