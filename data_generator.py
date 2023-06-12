@@ -5,7 +5,7 @@ import soundfile as sf
 from scipy.signal import stft
 import torch
 # If you have a GPU, put the data on the GPU
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = torch.device('cpu')
 
 directory = "Data/slakh2100_flac_redux/train"
 listdir = os.listdir(directory)
