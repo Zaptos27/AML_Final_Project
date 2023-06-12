@@ -102,7 +102,7 @@ class torchAgent:
         self.scheduler = scheduler(self.optimizer, **kwargs)
     
     
-    def tracks(self, validate: bool = False, test: bool = False):
+    def tracks(self, validate: bool = False, test: bool = False, **kwargs):
         if validate:
             path = self.valid_path
         elif test:
@@ -110,7 +110,7 @@ class torchAgent:
         else:
             path = self.data_path
         
-        for f in dg.data_frame(50, self.N, C = self.C, L = self.L, mix_amount = 4):
+        for f in dg.data_frame(50, self.N, directory = os.path.normpath(path), C = self.C, L = self.L, mix_amount = 4):
             positive, negative = dg.search_dicts(f, inst)
             if inst in positive:
                 # Yield positive with inst as label and negative with a zero_like as label
@@ -232,6 +232,26 @@ class torchAgent:
             del data, labels
             torch.cuda.empty_cache()
         
+    def generate_track(self, track_amount: int = 1, **kwargs):
+        self.model.eval()
+        for data in dg.data_dicts(track_amount,directory=self.test_path, print_dict=True):
+            dat = torch.view_as_complex(data['mix'])
+            output = torch.zeros_like(dat).to(self.device)
+            output = torch.transpose(output, 0, 1)
+            print(dat.shape)
+            for i in range(dat.shape[1]):
+                if i < self.C:
+                    continue
+                elif i > len(dat)-self.C:
+                    continue
+
+                output[i]=self.model(dat[: , i-self.C:i+self.C+1].reshape(-1,(2*self.C+1)*self.L))
+            output = torch.transpose(output, 0, 1)
+            if track_amount > 1:
+                yield istft(output, fs = 44100)[1]
+        yield istft(output, fs = 44100)[1]
+
+
         
 agent = torchAgent(dnn, criterion, optimizer=optim.Adam, epoch=epochs)
 agent.add_scheduler(optim.lr_scheduler.StepLR, step_size=1, gamma=0.75)
