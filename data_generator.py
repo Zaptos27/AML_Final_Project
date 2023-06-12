@@ -116,7 +116,7 @@ def data_dicts_all(directory=directory, format=format, sample_freq=sample_freq, 
         
         
 def data_frame(NUMBER_OF_ITERATIONS,amount, C = C, L = L, device=device, **kwargs):
-    for data in data_dicts(NUMBER_OF_ITERATIONS, freq_amount=L, **kwargs):
+    for data in data_dicts(NUMBER_OF_ITERATIONS, freq_amount=L, device= device, **kwargs):
         dat = {}
         lenght = data['mix'].shape[1]
         for inst in data.keys():
@@ -145,25 +145,25 @@ def data_frame(NUMBER_OF_ITERATIONS,amount, C = C, L = L, device=device, **kwarg
         
 
 
-def data_frame_all(NUMBER_OF_ITERATIONS,amount, C = C, L = L):
-    for data in data_dicts_all(NUMBER_OF_ITERATIONS, freq_amount=L):
+def data_frame_all(NUMBER_OF_ITERATIONS,amount, C = C, L = L, device= device, **kwargs):
+    for data in data_dicts_all(NUMBER_OF_ITERATIONS, freq_amount=L, device= device, **kwargs):
         dat = {}
         lenght = data['mix'].shape[1]
         for inst in data.keys():
-            dat[inst] = torch.zeros(amount,L,2*C+1,2, dtype=torch.float64)
+            dat[inst] = torch.zeros(amount,L,2*C+1,2, dtype=torch.float64).to(device)
             for j, rand in enumerate(torch.randint(0, lenght, (amount,))):
                 if rand < C:
-                    dat[inst][j][:,0] = torch.zeros(L, 2)
+                    dat[inst][j][:,0] = torch.zeros(L, 2).to(device)
                     i = 1
                     while rand-C+i < 0:
-                        dat[inst][j][:,i] = torch.zeros(L, 2)
+                        dat[inst][j][:,i] = torch.zeros(L, 2).to(device)
                         i+=1
                     dat[inst][j][:,i:] = data[inst][:, 0:rand+C+1]
                 elif rand > lenght-1-C:
-                    dat[inst][j][:,-1] = torch.zeros(L, 2)
+                    dat[inst][j][:,-1] = torch.zeros(L, 2).to(device)
                     i = 1
                     while rand+C-i > lenght-1:
-                        dat[inst][j][:,-1-i] = torch.zeros(L, 2)
+                        dat[inst][j][:,-1-i] = torch.zeros(L, 2).to(device)
                         i+=1
                     dat[inst][j][:,:-1-i] = data[inst][:, rand-C:-1]
                 else:
