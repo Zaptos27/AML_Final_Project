@@ -206,5 +206,5 @@ class torchAgent:
         
         
 agent = torchAgent(dnn, criterion, optimizer=optim.Adam, epoch=epochs)
-agent.add_scheduler(optim.lr_scheduler.StepLR, step_size=3, gamma=0.5)
+agent.add_scheduler(optim.lr_scheduler.StepLR, step_size=1, gamma=0.75)
 agent.train()
