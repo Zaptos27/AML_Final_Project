@@ -7,10 +7,11 @@ import os
 import numpy as np
 import data_generator as dg
 
-dropout = False
+
 C = 3
 L = 129
 N = 1000
+inst = 'Piano'
 
 torch.seed = 0
 
@@ -30,12 +31,8 @@ class DNN(nn.Module):
 
     def forward(self, x):
         x = complex_relu(self.layer1(x))
-        if dropout:
-            x = F.dropout(x, p=0.2)
         x = complex_relu(self.layer2(x))
         x = complex_relu(self.layer3(x))
-        if dropout:
-            x = F.dropout(x, p=0.2)
         x = complex_relu(self.layer4(x))
         x = self.layer5(x)
         return x
@@ -112,7 +109,7 @@ class torchAgent:
             path = self.test_path
         else:
             path = self.data_path
-        inst = 'Piano'
+        
         for f in dg.data_frame(50, self.N, C = self.C, L = self.L, mix_amount = 4):
             positive, negative = dg.search_dicts(f, inst)
             if inst in positive:
