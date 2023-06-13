@@ -7,9 +7,6 @@ import torch
 # If you have a GPU, put the data on the GPU
 device = torch.device('cpu')
 
-directory = "Data/slakh2100_flac_redux/train"
-listdir = os.listdir(directory)
-listdir.sort()
 format = '.flac'
 sample_freq = 44100
 freq_amount = 1025
@@ -23,11 +20,15 @@ NUMBER_OF_ITERATIONS = 2
 overlap = 10
 
 
-def data_dicts(N: int = 10, directory=directory, format=format, sample_freq=sample_freq, freq_amount=freq_amount, mixing=mixing, mix_amount=mix_amount, device=device, dict1=False, all: bool = False, print_dict: bool = False):
+def data_dicts(N: int = 10, directory:str=None, format=format, sample_freq=sample_freq, freq_amount=freq_amount, mixing=mixing, mix_amount=mix_amount, device=device, dict1=False, all: bool = False, print_dict: bool = False):
     if all:
         iterator = np.random.shuffle(os.listdir(directory))
     else:
         iterator = np.random.choice(os.listdir(directory), N)
+    
+    if directory is None:
+        directory = "Data/slakh2100_flac_redux/train"
+
     for tr in iterator:
         if print_dict:
             print(tr)
@@ -81,7 +82,11 @@ def data_dicts(N: int = 10, directory=directory, format=format, sample_freq=samp
         
         
         
-def data_frame(NUMBER_OF_ITERATIONS,amount, C = C, L = L, device=device, all: bool = False, directory=directory, **kwargs):
+def data_frame(NUMBER_OF_ITERATIONS,amount, C = C, L = L, device=device, all: bool = False, directory: str=None, **kwargs):
+    if directory is None:
+        directory = "Data/slakh2100_flac_redux/train"
+
+
     for data in data_dicts(NUMBER_OF_ITERATIONS, freq_amount=L, device= device, all=all, directory=directory, **kwargs):
         dat = {}
         lenght = data['mix'].shape[1]
