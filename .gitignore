@@ -173,3 +173,17 @@ model*
 *.mp3
 *.ogg
 *.flac
+
+#Remove images
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.eps
+*.bmp
+*.tif
+*.tiff
+*.webp
+*.svg
+*.ico
+*.psd
