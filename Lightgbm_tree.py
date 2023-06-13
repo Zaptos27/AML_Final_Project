@@ -8,6 +8,7 @@ from sklearn.metrics import accuracy_score
 import numpy as np
 import matplotlib.pyplot as plt
 import data_generator as dg
+import pickle
 
 freq = 1000
 # Set the logging level to suppress warning messages
@@ -86,8 +87,8 @@ def objective(trial):
         'objective': 'binary',
         'metric': 'binary_logloss',
         'boosting_type': 'gbdt',
-        'num_leaves': trial.suggest_int('num_leaves', 30, 100),
-        'learning_rate': trial.suggest_float('learning_rate', 0.01, 0.1),
+        'num_leaves': trial.suggest_int('num_leaves', 50, 250),
+        'learning_rate': trial.suggest_float('learning_rate', 0.001, 0.02),
         'feature_fraction': trial.suggest_float('feature_fraction', 0.6, 0.9),
         'max_depth': trial.suggest_int('max_depth', 5, 40),
         'verbose': -1
@@ -118,8 +119,20 @@ def objective(trial):
 auc_scores=[]
 fpr_list =[]
 tpr_list =[]
-X_train, y_train_dict = gener(150)
+X_train, y_train_dict = gener(100)
 X_test, y_test_dict = gener(20, test=True)
+with open('X_train.pkl', 'wb') as f:
+    pickle.dump(X_train, f)
+
+with open('y_train_dict.pkl', 'wb') as f:
+    pickle.dump(y_train_dict, f)
+    
+with open('X_test.pkl', 'wb') as f:
+    pickle.dump(X_test, f)
+
+with open('y_test_dict.pkl', 'wb') as f:
+    pickle.dump(y_test_dict, f)
+
 for inst in inst_list:
     y_train = y_train_dict[inst]
     y_test = y_test_dict[inst]
@@ -147,6 +160,16 @@ for inst in inst_list:
     
     print("AUC Score:", auc_scores[-1])
 
+
+with open('auc_scores.pkl', 'wb') as f:
+    pickle.dump(auc_scores, f)
+    
+with open('fpr_list.pkl', 'wb') as f:
+    pickle.dump(fpr_list, f)
+    
+with open('tpr_list.pkl', 'wb') as f:
+    pickle.dump(tpr_list, f)
+
 # Plot ROC curve
 plt.plot(fpr_list[0], tpr_list[0],color='g', label=f'Guitar AUC = {auc_scores[0]:.2f}')
 plt.plot(fpr_list[1], tpr_list[1],color='r', label=f'Piano AUC = {auc_scores[1]:.2f}')
@@ -166,13 +189,5 @@ plt.legend()
   
 plt.savefig('ROC.pdf')
 # To load the display window
-import pickle
-with open('auc_scores.pkl', 'wb') as f:
-    pickle.dump(auc_scores, f)
-    
-with open('fpr_list.pkl', 'wb') as f:
-    pickle.dump(fpr_list, f)
-    
-with open('tpr_list.pkl', 'wb') as f:
-    pickle.dump(tpr_list, f)
+
 plt.show()
