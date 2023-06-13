@@ -20,7 +20,7 @@ NUMBER_OF_ITERATIONS = 2
 overlap = 10
 
 
-def data_dicts(N: int = 10, directory:str=None, format=format, sample_freq=sample_freq, freq_amount=freq_amount, mixing=mixing, mix_amount=mix_amount, device=device, dict1=False, all: bool = False, print_dict: bool = False):
+def data_dicts(N: int = 10, directory:str=None, format=format, sample_freq=sample_freq, freq_amount=freq_amount, mixing=mixing, mix_amount=mix_amount, device=device, dict1=False, all: bool = False, print_dict: bool = False, inst_list: list = None):
     if all:
         iterator = np.random.shuffle(os.listdir(directory))
     else:
@@ -41,6 +41,8 @@ def data_dicts(N: int = 10, directory:str=None, format=format, sample_freq=sampl
         file_inst = file_inst[[file_inst[:,0][i] in os.listdir(os.path.join(tr_path, 'stems')) for i in range(len(file_inst))]]
         # combine all stems from the same instrument and track using soundfile
         for inst in np.unique(file_inst[:,1]):
+            if inst_list is not None and inst not in inst_list:
+                continue
             inst_files = file_inst[file_inst[:,1] == inst][:,0]
             inst_files = [os.path.join(tr_path, 'stems', inst_file) for inst_file in inst_files]
             inst_data = np.array([sf.read(inst_file)[0] for inst_file in inst_files])

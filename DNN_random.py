@@ -13,6 +13,7 @@ import soundfile as sf
 C = 3
 L = 1025
 N = 100
+L2 = 44100//5
 overlap = 10 
 inst = 'Drums'
 
@@ -41,15 +42,27 @@ class DNN(nn.Module):
         return x
 
 dnn = DNN(C, L)
-criterion = nn.L1Loss(reduction='sum')#nn.MSELoss(reduction='sum')
 
-optimizer = optim.Adam(dnn.parameters(), lr=0.001)
+class DNN2(nn.Module):
 
-epochs = 100
+    def __init__(self, L2):
+        super(DNN2, self).__init__()
+
+        self.layer1 = nn.Linear(L2, L2//2, dtype=torch.float64)
+        self.layer2 = nn.Linear(L2//2, L2//2, dtype=torch.float64)
+        self.layer3 = nn.Linear(L2//2, L2//2, dtype=torch.float64)
+
+    def forward(self, x):
+        x = F.relu(self.layer1(x))
+        x = F.relu(self.layer2(x))
+        x = self.layer3(x)
+        return x
+
+dnn2 = DNN2(L2)
 
 
 class torchAgent:
-    def __init__(self,model, loss_fn, data_path: str = None, valid_path: str = None, test_path: str = None, optimizer = None, device: str = None, epoch: int = 100, model_path = None, verbose: int = 2, track_amount: int = None, C: int = C, L: int = L, N: int = N, **kwargs):
+    def __init__(self,model, loss_fn, data_path: str = None, valid_path: str = None, test_path: str = None, optimizer = None,L2: int = None, device: str = None, epoch: int = 100, model_path = None, verbose: int = 2, track_amount: int = None, C: int = C, L: int = L, N: int = N, **kwargs):
         # device: cpu / gpu
         if device is None:
             self.device = torch.device(
@@ -91,7 +104,11 @@ class torchAgent:
             self.optimizer = optim.Adam(self.model.parameters(), lr=0.001)
         else:
             self.optimizer = optimizer
-            
+        
+        if L2 is None:
+            self.L2 = 44100
+        else:
+            self.L2 = L2
             
         self.C = C
         self.L = L
@@ -133,21 +150,56 @@ class torchAgent:
                         break
                 data = torch.stack(data).to(self.device)
                 label = torch.stack(label).to(self.device)
-                data = data.reshape(-1, L*(2*C+1)).to(self.device)
-                label = label.reshape(-1, L).to(self.device)
+                data = data.reshape(-1, self.L*(2*self.C+1)).to(self.device)
+                label = label.reshape(-1, self.L).to(self.device)
                 yield data, label
                 del data, label
+                
+    def track_original(self, validate: bool = False, test: bool = False, **kwargs):
+        if validate:
+            path = self.valid_path
+        elif test:
+            path = self.test_path
+        else:
+            path = self.data_path
+            
+        for f in dg.data_dicts(self.N, directory=path, mixing=False, dict1=True):
+            positive, negative = dg.search_dicts(f, inst)
+            if inst in positive:
+                la = torch.from_numpy(f[inst])
+                dat = []
+                labels = []
+                for instrument in positive:
+                    data = torch.from_numpy(f[instrument])
+                    for i in torch.randint(0,data.shape[0]-self.L2-1,(10,)):
+                        dat.append(data[i:i+self.L2])
+                        labels.append(la[i+self.L2//2:i+self.L2])
+                for instrument in negative:
+                    data = torch.from_numpy(f[instrument])
+                    for i in torch.randint(0,data.shape[0]-self.L2-1,(2,)):
+                        dat.append(data[i:i+self.L2])
+                        labels.append(torch.zeros_like(la[i+self.L2//2:i+self.L2]))
+                dat = torch.stack(dat).to(self.device)
+                labels = torch.stack(labels).to(self.device)
+                dat = dat.reshape(-1, self.L2).to(self.device)
+                labels = labels.reshape(-1, self.L2//2).to(self.device)
+                yield dat, labels
+                del data, labels
+                if self.device == 'cuda':
+                    torch.cuda.empty_cache()   
+            
+                        
 
     def train_one_epoch(self, **kwargs):
         self.model.train(True)
         running_loss = 0.
 
-        for i, (data, labels) in enumerate(self.tracks()):
+        for i, (data, labels) in enumerate(self.track_original()):
             # Zero your gradients for every batch!
             self.optimizer.zero_grad()
 
             # calculate loss
-            loss = self.loss_fn((self.model(data))*100, (labels)*100)
+            loss = self.loss_fn((self.model(data)), (labels))
 
             # backpropagation
             loss.backward()
@@ -170,7 +222,7 @@ class torchAgent:
         self.model.train(False)
         running_loss = 0.
 
-        for i, (data, labels) in enumerate(self.tracks(validate=True)):
+        for i, (data, labels) in enumerate(self.track_original(validate=True)):
             # calculate loss
             loss = self.loss_fn((self.model(data)), (labels))
 
@@ -260,13 +312,20 @@ class torchAgent:
             output = torch.transpose(output, 0, 1)
             if track_amount > 1:
                 yield istft(output.detach().cpu(), fs = 44100, noverlap=overlap)[1]
+        output = output/torch.sum(torch.abs(output))
         yield istft(output.detach().cpu(), fs = 44100, noverlap=overlap)[1]
 
 
-        
-agent = torchAgent(dnn, criterion, epoch=epochs)
-agent.add_scheduler(optim.lr_scheduler.StepLR, step_size=2, gamma=0.75)
 
-agent.train()
+if __name__ == '__main__':
+    criterion = nn.MSELoss(reduction='sum')#nn.L1Loss(reduction='sum')#nn.MSELoss(reduction='sum')
+    epochs = 100
 
-sf.write('test.wav', list(agent.generate_track(track_amount=1))[0], 44100)
+    agent = torchAgent(dnn2, criterion, epoch=epochs, L2=L2)
+    agent.add_optimizer(optim.Adam, lr=0.01)
+    agent.add_scheduler(optim.lr_scheduler.StepLR, step_size=2, gamma=0.75)
+    #agent.load_model('model_23_06_13_0812_EPOCH_25_best?')
+    #agent.load_model('model_23_06_12_2340_EPOCH_6')
+    #agent.validate()
+    agent.train()
+    sf.write('test.wav', list(agent.generate_track(track_amount=1))[0], 44100)
