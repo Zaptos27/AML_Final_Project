@@ -12,7 +12,7 @@ listdir = os.listdir(directory)
 listdir.sort()
 format = '.flac'
 sample_freq = 44100
-freq_amount = 129
+freq_amount = 1025
 mixing = True
 mix_amount = 2
 np.random.seed(0)
@@ -20,6 +20,7 @@ amount = 100
 L = freq_amount
 C = 2
 NUMBER_OF_ITERATIONS = 2
+overlap = 10
 
 
 def data_dicts(N: int = 10, directory=directory, format=format, sample_freq=sample_freq, freq_amount=freq_amount, mixing=mixing, mix_amount=mix_amount, device=device, dict1=False, all: bool = False, print_dict: bool = False):
@@ -51,7 +52,12 @@ def data_dicts(N: int = 10, directory=directory, format=format, sample_freq=samp
         if mixing:
             # Find all instruments that are in the dictionary
             inst_in_dict = list(tr_dict.keys())
-            inst_amount = np.random.randint(2, len(inst_in_dict)-1, size=mix_amount)
+            if len(inst_in_dict) > 3:
+                inst_amount = np.random.randint(2, len(inst_in_dict)-1, size=mix_amount)
+            elif len(inst_in_dict) == 3:
+                inst_amount = np.array([2]*mix_amount)                
+            else:
+                inst_amount = np.array([1]*mix_amount)
             for i in range(mix_amount):
                 # Choose the instruments to combine
                 inst_to_mix = np.random.choice(inst_in_dict, inst_amount[i], replace=False)
@@ -65,7 +71,7 @@ def data_dicts(N: int = 10, directory=directory, format=format, sample_freq=samp
         if dict1:
             yield tr_dict
         else:
-            tr_dicts_2 = {inst: torch.view_as_real_copy(torch.from_numpy(stft(tr_dict[inst], fs=sample_freq, nperseg=freq_amount*2-2)[2])).to(device) for inst in tr_dict.keys()}
+            tr_dicts_2 = {inst: torch.view_as_real_copy(torch.from_numpy(stft(tr_dict[inst], fs=sample_freq, nperseg=freq_amount*2-2, noverlap=overlap)[2])).to(device) for inst in tr_dict.keys()}
             yield tr_dicts_2
             del tr_dicts_2
         del tr_dict
@@ -75,8 +81,8 @@ def data_dicts(N: int = 10, directory=directory, format=format, sample_freq=samp
         
         
         
-def data_frame(NUMBER_OF_ITERATIONS,amount, C = C, L = L, device=device, all: bool = False, **kwargs):
-    for data in data_dicts(NUMBER_OF_ITERATIONS, freq_amount=L, device= device, all=all, **kwargs):
+def data_frame(NUMBER_OF_ITERATIONS,amount, C = C, L = L, device=device, all: bool = False, directory=directory, **kwargs):
+    for data in data_dicts(NUMBER_OF_ITERATIONS, freq_amount=L, device= device, all=all, directory=directory, **kwargs):
         dat = {}
         lenght = data['mix'].shape[1]
         for inst in data.keys():
