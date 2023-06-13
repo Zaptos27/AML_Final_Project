@@ -9,14 +9,14 @@ from datetime import datetime
 print(datetime.now().strftime("%H:%M:%S"))
 
 C = 3
-L = 129
-amount = 100
-files = 400
+L = 1025
+amount = 50
+files = 100
 inst = 'Piano'
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-torch.seed = 0
+torch.seed = 2
 
 class DNN(nn.Module):
 
@@ -48,12 +48,12 @@ for f in dg.data_frame(files, amount, C = C, L = L, mix_amount = 4, device='cpu'
     if inst in positive:
         # Yield positive with inst as label and negative with a zero_like as label
         for instrument in positive: 
-            data.append(torch.view_as_complex(f[instrument]).real)
-            label.append(torch.view_as_complex(f[inst][:, :,C]).real)
+            data.append(torch.view_as_complex(f[instrument]).imag)
+            label.append(torch.view_as_complex(f[inst][:, :,C]).imag)
         iter = 0
         for instrument in negative:
-            data.append(torch.view_as_complex(f[instrument]).real)
-            label.append(torch.view_as_complex(torch.zeros_like(f[inst][:, :,C])).real)
+            data.append(torch.view_as_complex(f[instrument]).imag)
+            label.append(torch.view_as_complex(torch.zeros_like(f[inst][:, :,C])).imag)
             iter += 1
             if iter == len(positive):
                 break
@@ -94,6 +94,7 @@ for layer in [dnn.layer2, dnn.layer3, dnn.layer4, dnn.layer5]:
     xp_mean = xp.mean(0)
     Csx = torch.zeros((L,L),dtype=torch.float64).to(device)
     Cxx = torch.zeros((L,L),dtype=torch.float64).to(device)
+    Cxx += (torch.eye(L,dtype=torch.float64)*1e-8).to(device)
     for i in range(N):
         Csx += torch.outer((sp[i]-sp_mean), (xp[i]-xp_mean))
         Cxx += torch.outer((xp[i]-xp_mean), (xp[i]-xp_mean))
@@ -112,6 +113,7 @@ for layer in [dnn.layer2, dnn.layer3, dnn.layer4, dnn.layer5]:
     layer_opt.step(closure)
     xp = layer(xp)
 
+torch.save(dnn.state_dict(), 'DNN_leastSquares_imag_middel.pt')
 # This is a final fine tuning, takes way longer than everything else, dunno if it's necessary
 final_opt = optim.LBFGS(dnn.parameters(), max_iter=6000)
 def closure():
@@ -123,6 +125,6 @@ def closure():
 final_opt.step(closure)
 
 
-torch.save(dnn.state_dict(), 'DNN_leastSquares_real.pt')
+torch.save(dnn.state_dict(), 'DNN_leastSquares_imag.pt')
 #print time
 print(datetime.now().strftime("%H:%M:%S"))

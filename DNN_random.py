@@ -6,12 +6,15 @@ from datetime import datetime
 import os
 import numpy as np
 import data_generator as dg
+from scipy.signal import istft
+import soundfile as sf
 
 
 C = 3
-L = 129
-N = 1000
-inst = 'Piano'
+L = 1025
+N = 100
+overlap = 10 
+inst = 'Drums'
 
 torch.seed = 0
 
@@ -38,7 +41,7 @@ class DNN(nn.Module):
         return x
 
 dnn = DNN(C, L)
-criterion = nn.MSELoss(reduction='sum')
+criterion = nn.L1Loss(reduction='sum')#nn.MSELoss(reduction='sum')
 
 optimizer = optim.Adam(dnn.parameters(), lr=0.001)
 
@@ -65,7 +68,7 @@ class torchAgent:
         else:
             self.model_path = model_path
 
-        if data_path is not None:
+        if data_path is None:
             self.data_path  = 'Data/slakh2100_flac_redux/train' #data path
         else:
             self.data_path = data_path
@@ -78,15 +81,18 @@ class torchAgent:
             self.valid_path = 'Data/slakh2100_flac_redux/validation' #validataion path
         else:
             self.valid_path = valid_path
-
+        
         if track_amount is None:
             self.track_amount = len(os.listdir(self.data_path))
         else:
             self.track_amount = track_amount
         
-        
-        self.optimizer = optimizer(self.model.parameters(), **kwargs) # set optimizer
-        
+        if optimizer is None:
+            self.optimizer = optim.Adam(self.model.parameters(), lr=0.001)
+        else:
+            self.optimizer = optimizer
+            
+            
         self.C = C
         self.L = L
         self.N = N
@@ -102,7 +108,7 @@ class torchAgent:
         self.scheduler = scheduler(self.optimizer, **kwargs)
     
     
-    def tracks(self, validate: bool = False, test: bool = False):
+    def tracks(self, validate: bool = False, test: bool = False, **kwargs):
         if validate:
             path = self.valid_path
         elif test:
@@ -110,7 +116,7 @@ class torchAgent:
         else:
             path = self.data_path
         
-        for f in dg.data_frame(50, self.N, C = self.C, L = self.L, mix_amount = 4):
+        for f in dg.data_frame(50, self.N,directory=path, C = self.C, L = self.L, mix_amount = 4):
             positive, negative = dg.search_dicts(f, inst)
             if inst in positive:
                 # Yield positive with inst as label and negative with a zero_like as label
@@ -141,7 +147,7 @@ class torchAgent:
             self.optimizer.zero_grad()
 
             # calculate loss
-            loss = self.loss_fn(torch.view_as_real(self.model(data)), torch.view_as_real(labels))
+            loss = self.loss_fn((self.model(data))*100, (labels)*100)
 
             # backpropagation
             loss.backward()
@@ -166,7 +172,7 @@ class torchAgent:
 
         for i, (data, labels) in enumerate(self.tracks(validate=True)):
             # calculate loss
-            loss = self.loss_fn(torch.view_as_real(self.model(data)), torch.view_as_real(labels))
+            loss = self.loss_fn((self.model(data)), (labels))
 
             # print statistics
             running_loss += loss.item()
@@ -199,9 +205,68 @@ class torchAgent:
 
     def load_model(self, model_path: str):
         self.model.load_state_dict(torch.load(model_path))
-        print(f'Model loaded from {model_path}')        
+        print(f'Model loaded from {model_path}')     
+
+    def test(self, **kwargs): #Loss function for test?
+        self.model.train(False)
+        running_loss = 0.
+
+        for i, (data, labels) in enumerate(self.tracks(test=True)):
+            # calculate loss
+            loss = self.loss_fn(torch.view_as_real(self.model(data)), torch.view_as_real(labels))
+
+            # print statistics
+            running_loss += loss.item()
+            print(f'Batch: [{i+1}] loss: {loss.item():.5f}, loss: {running_loss:.5f}',end='\r')
+
+            # free memory
+            del data, labels, loss
+            torch.cuda.empty_cache()
+
+        return running_loss/(i+1)   
+    
+    #Predict from the test set
+    def predict(self, **kwargs):
+        self.model.train(False)
         
+        for i, (data, labels) in enumerate(self.tracks(test=True)):
+            self.model(data)
+            
+            yield data, labels
+
+            # free memory
+            del data, labels
+            torch.cuda.empty_cache()
         
-agent = torchAgent(dnn, criterion, optimizer=optim.Adam, epoch=epochs)
-agent.add_scheduler(optim.lr_scheduler.StepLR, step_size=1, gamma=0.75)
+    def generate_track(self, track_amount: int = 1, **kwargs):
+        self.model.eval()
+        for data in dg.data_dicts(track_amount,directory=self.test_path, print_dict=True):
+            new_dat = []
+            dat = torch.view_as_complex(data['mix']).to(self.device)
+            output = torch.zeros_like(dat).to(self.device)
+            output = torch.transpose(output, 0, 1)
+            
+            for i in range(dat.shape[1]):
+                if i < self.C:
+                    continue
+                elif i > dat.shape[1]-self.C-1:
+                    continue
+                new_dat.append(dat[: , i-self.C:i+self.C+1])
+            
+            new_dat = torch.stack(new_dat)
+            new_dat = new_dat.reshape(-1, L*(2*C+1)).to(self.device)
+            
+            output=self.model(new_dat)
+            output = torch.transpose(output, 0, 1)
+            if track_amount > 1:
+                yield istft(output.detach().cpu(), fs = 44100, noverlap=overlap)[1]
+        yield istft(output.detach().cpu(), fs = 44100, noverlap=overlap)[1]
+
+
+        
+agent = torchAgent(dnn, criterion, epoch=epochs)
+agent.add_scheduler(optim.lr_scheduler.StepLR, step_size=2, gamma=0.75)
+
 agent.train()
+
+sf.write('test.wav', list(agent.generate_track(track_amount=1))[0], 44100)
