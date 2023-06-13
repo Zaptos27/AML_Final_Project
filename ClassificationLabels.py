@@ -11,8 +11,9 @@ import glob
 import time
 
 start_time = time.time()
-#directory = "/Users/odysseaslazaridis/Documents/GroupProject/new_babyslack"
-directory = "new_babyslack"
+directory = "/Users/odysseaslazaridis/Documents/GroupProject/new_babyslack"
+#directory = "new_babyslack"
+
 # Size of the Fast Fourier Transform (FFT), which will also be used as the window length
 n_fft=1024 #number is from  mdpi paper
 
@@ -23,10 +24,13 @@ hop_length=512
 window_type ='hann'
 
 mel_bins = 40 # Number of mel bands
+
 fmin = 0
 fmax= None
 
-def get_iterations(track_path,step_size = 64000):
+freq = 1000
+
+def get_iterations(track_path,step_size = freq):
     inst = os.listdir(track_path)[0]
     instr_path = os.path.join(track_path, inst)
     y, sr = sf.read(instr_path)
@@ -55,8 +59,8 @@ for tr in os.listdir(directory):
                 Mel_spectrogram = librosa.feature.melspectrogram(y=y, sr=sr, n_fft=n_fft, hop_length=hop_length, win_length=n_fft, window=window_type, n_mels = mel_bins, power=2.0)
                 mel_spectrogram_db = librosa.power_to_db(Mel_spectrogram, ref=np.max)
                 for i in range(iters):
-                    start_index = i*int(2*64000/n_fft)
-                    end_index = (i+1)*int(2*64000/n_fft)
+                    start_index = i*int(2*freq/n_fft)
+                    end_index = (i+1)*int(2*freq/n_fft)
                     if np.amax(mel_spectrogram_db[:,start_index:end_index]) < -60:
                         labels.append(0)
                     else:
