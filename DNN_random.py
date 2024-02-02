@@ -140,11 +140,11 @@ class torchAgent:
                 data, label = [], []
                 for instrument in positive: 
                     data.append(torch.view_as_complex(f[instrument]))
-                    label.append(torch.view_as_complex(f[inst][:, :,C]))
+                    label.append(torch.view_as_complex(f[inst][:, :,self.C]))
                 iter = 0
                 for instrument in negative:
                     data.append(torch.view_as_complex(f[instrument]))
-                    label.append(torch.view_as_complex(torch.zeros_like(f[inst][:, :,C])))
+                    label.append(torch.view_as_complex(torch.zeros_like(f[inst][:, :,self.C])))
                     iter += 1
                     if iter == len(positive):
                         break
@@ -163,7 +163,7 @@ class torchAgent:
         else:
             path = self.data_path
             
-        for f in dg.data_dicts(self.N, directory=path, mixing=False, dict1=True):
+        for f in dg.data_dicts(self.N, directory=path, mixing=False, dict1=True, clean=True):
             positive, negative = dg.search_dicts(f, inst)
             if inst in positive:
                 la = torch.from_numpy(f[inst])
@@ -183,6 +183,9 @@ class torchAgent:
                 labels = torch.stack(labels).to(self.device)
                 dat = dat.reshape(-1, self.L2).to(self.device)
                 labels = labels.reshape(-1, self.L2//2).to(self.device)
+                if clean:
+                    #set all values to under 1e-5 to zero
+                    dat[torch.abs(dat) < 1e-5] = 0
                 yield dat, labels
                 del data, labels
                 if self.device == 'cuda':
@@ -194,12 +197,12 @@ class torchAgent:
         self.model.train(True)
         running_loss = 0.
 
-        for i, (data, labels) in enumerate(self.track_original()):
+        for i, (data, labels) in enumerate(self.tracks()):
             # Zero your gradients for every batch!
             self.optimizer.zero_grad()
 
             # calculate loss
-            loss = self.loss_fn((self.model(data)), (labels))
+            loss = self.loss_fn(1000*torch.view_as_real(self.model(data)), 1000*torch.view_as_real(labels))
 
             # backpropagation
             loss.backward()
@@ -222,9 +225,9 @@ class torchAgent:
         self.model.train(False)
         running_loss = 0.
 
-        for i, (data, labels) in enumerate(self.track_original(validate=True)):
+        for i, (data, labels) in enumerate(self.tracks(validate=True)):
             # calculate loss
-            loss = self.loss_fn((self.model(data)), (labels))
+            loss = self.loss_fn(torch.view_as_real(self.model(data)), torch.view_as_real(labels))
 
             # print statistics
             running_loss += loss.item()
@@ -315,17 +318,38 @@ class torchAgent:
         output = output/torch.sum(torch.abs(output))
         yield istft(output.detach().cpu(), fs = 44100, noverlap=overlap)[1]
 
+    def generate_track_from_file(self, file_path: str, **kwargs):
+        self.model.eval()
+        data = sf.read(file_path)[0]
+        new_dat = []
+        dat = torch.view_as_complex(torch.from_numpy(data)).to(self.device)
+
+        for i in range(dat.shape[1]):
+            if i < self.C:
+                continue
+            elif i > dat.shape[1]-self.C-1:
+                continue
+            new_dat.append(dat[: , i-self.C:i+self.C+1])
+
+        new_dat = torch.stack(new_dat)
+        new_dat = new_dat.reshape(-1, L*(2*C+1)).to(self.device)
+
+        output=self.model(new_dat)
+        output = torch.transpose(output, 0, 1)
+        print(output.shape)
+        yield istft(output.detach().cpu(), fs = 44100, noverlap=overlap)[1]
+
 
 
 if __name__ == '__main__':
     criterion = nn.MSELoss(reduction='sum')#nn.L1Loss(reduction='sum')#nn.MSELoss(reduction='sum')
     epochs = 100
 
-    agent = torchAgent(dnn2, criterion, epoch=epochs, L2=L2)
+    agent = torchAgent(dnn, criterion, epoch=epochs, L = L, C = C)
     agent.add_optimizer(optim.Adam, lr=0.01)
     agent.add_scheduler(optim.lr_scheduler.StepLR, step_size=2, gamma=0.75)
-    #agent.load_model('model_23_06_13_0812_EPOCH_25_best?')
+    agent.load_model('model_23_06_14_1354_EPOCH_35')
     #agent.load_model('model_23_06_12_2340_EPOCH_6')
     #agent.validate()
-    agent.train()
+    #agent.train()
     sf.write('test.wav', list(agent.generate_track(track_amount=1))[0], 44100)
